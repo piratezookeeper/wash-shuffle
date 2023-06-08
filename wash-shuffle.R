@@ -301,18 +301,29 @@ casino_shuffle = function(deck) {
 }
 
 # Wrapper function for wash shuffle
-wash = function() {
-  # Initialize cards
-  left = c(1:13, rev(27:39))
-  right = c(rev(40:52), 14:26)
-  cycles = 4
+# Peter adding a few things:
+# 1) make it a function of the deck, and number of cycles
+# 2) add randomness to initial vectors 
+# 3) n = tpois(3) -- max defaults to 52 but I think we need max to be the length of left/right
+# 4) I think we need a return(deck) at the end or else it doesn't do anything
+# 5) added randomness to inner/outer
+
+wash = function(deck, cycles) {
+  
+  # (2) This will make 4 segments that will be the same size on average, but adds randomness
+  cut1 <- rbinom(n=1, size=52, prob=0.25)
+  cut2 <- rbinom(n=1, size=(52-cut1), prob=(1/3)) + cut1
+  cut3 <- rbinom(n=1, size=(52-cut2), prob=0.5) + cut2
+  left = deck[c(1:cut1, rev((cut2+1):cut3))]
+  right = deck[c(rev((cut3+1):52), (cut1+1):cut2)]
+  
   
   for (i in 1:cycles) {
-    n = tpois(3) # Random length of shift
+    n = tpois(3, max=length(left)) # (3) Random length of shift
     left = shift(left, n)
     
     for (j in 1:tpois(1.5, 5)) {
-      outer_inner = sample(0:1, 1)
+      outer_inner = sample(0:1, 1, prob=c(0.3, 0.7)) # making inner more likely
       
       if (outer_inner == 1) {
         swap_inner(left, right)
@@ -322,11 +333,11 @@ wash = function() {
       }
     }
     
-    n = tpois(3) # Random length of shift
+    n = tpois(3, max=length(right)) # Random length of shift
     right = shift(right, n)
     
     for (j in 1:tpois(1.5, 5)) {
-      outer_inner = sample(0:1, 1)
+      outer_inner = sample(0:1, 1, prob=c(0.3, 0.7))
       
       if (outer_inner == 1) {
         swap_inner(left, right)
@@ -338,4 +349,5 @@ wash = function() {
   }
   
   deck = gather(left, right)
+  return(deck) # (4) 
 }
