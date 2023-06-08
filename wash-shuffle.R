@@ -183,15 +183,18 @@ gather = function(vec1, vec2) {
   col4 = vec2[1:(ceiling(length(vec2) / 2) - 1)]
   columns = list(col1, col2, col3, col4)
   
+  # Need initial column lengths to generate n variable in while loop
+  col_len = list(length(col1), length(col2), length(col3), length(col4))
+  
   # Create an empty deck
   deck = c()
   counter = 52
   cols = 4
   
   while (counter != 0) {
-    i = rbinom(1,3,0.5) + 1 # More likely to sample inner columns
-    n = rbinom(1, length(i), 0.5)
+    i = rbinom(1, (cols - 1), 0.5) + 1 # More likely to sample inner columns
     len = length(columns[[i]])
+    n = rbinom(1, (col_len[[i]] - 1), 0.5) + 1
     
     if (n == 0) {
       next
