@@ -299,3 +299,43 @@ casino_shuffle = function(deck) {
   deck = cut(deck)
   return(deck)
 }
+
+# Wrapper function for wash shuffle
+wash = function() {
+  # Initialize cards
+  left = c(1:13, rev(27:39))
+  right = c(rev(40:52), 14:26)
+  cycles = 4
+  
+  for (i in 1:cycles) {
+    n = tpois(3) # Random length of shift
+    left = shift(left, n)
+    
+    for (j in 1:tpois(1.5, 5)) {
+      outer_inner = sample(0:1, 1)
+      
+      if (outer_inner == 1) {
+        swap_inner(left, right)
+      }
+      else {
+        swap_outer(left, right)
+      }
+    }
+    
+    n = tpois(3) # Random length of shift
+    right = shift(right, n)
+    
+    for (j in 1:tpois(1.5, 5)) {
+      outer_inner = sample(0:1, 1)
+      
+      if (outer_inner == 1) {
+        swap_inner(left, right)
+      }
+      else {
+        swap_outer(left, right)
+      }
+    }
+  }
+  
+  deck = gather(left, right)
+}
