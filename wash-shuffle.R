@@ -7,7 +7,14 @@ shift = function(vec, n) {
 
 
 # Function to randomly swap two cards to each others' locations.
-swap_inner = function(vec1, vec2) {
+# Mike adding a few things:
+# 1) Change swap verbiage to slice, more appropriate given the function
+# 2) n is now tpois distributed with max = (k - 2)
+# 3) i will not be determined by n. The idea is to have slice from swap_out always be generally centered
+# which makes sure there will never be out of bounds or negative indices for slicing
+# 4) The actual slicing from swap_out to swap_in becomes greatly simplified as a result of changes 2 and 3
+
+slice_inner = function(vec1, vec2) { # 1)
   # Slice vectors into only inner columns
   vec1_inner = vec1[ceiling(length(vec1) / 2):length(vec1)]
   vec2_inner = vec2[ceiling(length(vec2) / 2):length(vec2)]
@@ -28,39 +35,19 @@ swap_inner = function(vec1, vec2) {
     swap_in = vec1_inner
   }
   
-  # Inner swap card index will be binomial distributed
-  # Ensure index will never be first or last element
-  i = rbinom(1, (length(swap_out) - 1), 0.5) + 1
+  k = length(swap_out)
+  n = tpois(lambda = 4, max = (k - 2)) # 2)
+  # (k - 2) ensures entire swap_out vector will never be sliced as a whole
+  i = ceiling((k - n) / 2) # 3)
   
-  # Choose group size (1 to 6 cards)
-  # Use truncated Poisson for distribution
-  n = rbinom(1, 6, 0.5)
-  #n = tpois(4)
-  
-  # Code if-else for if n=0 then break
-  # I cannot get this to work for tpois because sometimes n==0
-  # The same problem will persist from swap_outer function as well
-  if (n == 0) {
-    return()
-  }
-  else {
-    # Swap cards
-    if ((i + n) > length(swap_out)) {
-      # Then card group is [(i-n):i]
-      swap_in = c(swap_in[1:(i - n - 1)],
-                  swap_out[(i - n):i],
-                  swap_in[(i - n):length(swap_in)])
-      swap_out = c(swap_out[1:(i - n - 1)],
-                   swap_out[(i + 1):length(swap_out)])
-    }
-    else {
-      # Then card group is [i:n]
-      swap_in = c(swap_in[1:(i - 1)],
-                  swap_out[i:(i + n)],
-                  swap_in[i:length(swap_in)])
-      swap_out = c(swap_out[1:(i - 1)],
-                   swap_out[(i + n + 1):length(swap_out)])
-    }
+  # Swap cards
+  # 4)
+  slice = swap_out[i:(i + n)]
+  swap_in = c(swap_in[1:i],
+              slice,
+              swap_in[(i + 1):length(swap_in)])
+  swap_out = c(swap_out[1:i],
+               swap_out[(i + n + 1):k])
     
     # Join vector halves back together
     if (condition == 1) {
@@ -79,8 +66,11 @@ swap_inner = function(vec1, vec2) {
   }
 }
 
+# Mike adding a few things:
+# 1) Function name change to be consistent with slice_inner
+# 2) Changes made consistent with those also made in slice_inner
 
-swap_outer = function(vec1, vec2) {
+slice_outer = function(vec1, vec2) { # 1)
   # Slice vectors into columns
   vec1_outer = vec1[1:(ceiling(length(vec1) / 2) - 1)]
   vec2_inner = vec2[ceiling(length(vec2) / 2):length(vec2)]
@@ -120,33 +110,19 @@ swap_outer = function(vec1, vec2) {
     }
   }
   
-  # Inner swap card index will be binomial distributed
-  # Ensure index will never be first or last element
-  i = rbinom(1, (length(swap_out) - 1), 0.5) + 1
-  
-  # Choose group size (1 to 6 cards)
-  # Use truncated Poisson for distribution
-  n = rbinom(1, 2, 0.5)
-  
-  # Code if-else for if n=0 then break
+  # 2)
+  k = length(swap_out)
+  n = tpois(lambda = 4, max = (k - 2))
+  # (k - 2) ensures entire swap_out vector will never be sliced as a whole
+  i = ceiling((k - n) / 2)
   
   # Swap cards
-  if ((i + n) > length(swap_out)) {
-    # Then card group is [(i-n):i]
-    swap_in = c(swap_in[1:(i - n - 1)],
-                swap_out[(i - n):i],
-                swap_in[(i - n):length(swap_in)])
-    swap_out = c(swap_out[1:(i - n - 1)],
-                 swap_out[(i + 1):length(swap_out)])
-  }
-  else {
-    # Then card group is [i:n]
-    swap_in = c(swap_in[1:(i - 1)],
-                swap_out[i:(i + n)],
-                swap_in[i:length(swap_in)])
-    swap_out = c(swap_out[1:(i - 1)],
-                 swap_out[(i + n + 1):length(swap_out)])
-  }
+  slice = swap_out[i:(i + n)]
+  swap_in = c(swap_in[1:i],
+              slice,
+              swap_in[(i + 1):length(swap_in)])
+  swap_out = c(swap_out[1:i],
+               swap_out[(i + n + 1):k])
   
   # Join vector halves back together
   if (condition == 1) {
@@ -308,6 +284,9 @@ casino_shuffle = function(deck) {
 # 4) I think we need a return(deck) at the end or else it doesn't do anything
 # 5) added randomness to inner/outer
 
+# Mike adding a few things
+# 1) Update function names
+
 wash = function(deck, cycles) {
   
   # (2) This will make 4 segments that will be the same size on average, but adds randomness
@@ -326,10 +305,10 @@ wash = function(deck, cycles) {
       outer_inner = sample(0:1, 1, prob=c(0.3, 0.7)) # making inner more likely
       
       if (outer_inner == 1) {
-        swap_inner(left, right)
+        slice_inner(left, right) # 1)
       }
       else {
-        swap_outer(left, right)
+        slice_outer(left, right) # 1)
       }
     }
     
@@ -340,10 +319,10 @@ wash = function(deck, cycles) {
       outer_inner = sample(0:1, 1, prob=c(0.3, 0.7))
       
       if (outer_inner == 1) {
-        swap_inner(left, right)
+        slice_inner(left, right) # 1)
       }
       else {
-        swap_outer(left, right)
+        slice_outer(left, right) # 1)
       }
     }
   }
