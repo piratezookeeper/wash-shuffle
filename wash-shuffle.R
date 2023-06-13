@@ -32,7 +32,7 @@ slice_inner = function(deck) { # 1)
   
   # Probability of the swap coming from vec1 to vec2
   p = len1 / (len1 + len2)
-  condition = sample(0:1, 1, prob = c(p, (1 - p)))
+  condition = sample(0:1, 1, prob = c((1 - p), p))
   
   # Choose which vector to swap from
   if (condition == 1) {
@@ -97,7 +97,7 @@ slice_outer = function(deck) { # 1)
   
   # Probability of the swap coming from vec1 to vec2
   p = len1_outer / (len1_outer + len2_outer)
-  condition = sample(0:1, 1, prob = c(p, (1 - p)))
+  condition = sample(0:1, 1, prob = c((1 - p), p))
   
   # Choose which vector to swap from
   if (condition == 1) {
