@@ -1,10 +1,15 @@
+# Mike's changes as of 6/13/23
+# slice_inner, slice_outer, gather will now work with list variable of left and right vectors
+# slice_inner, slice_outer, gather now return list
+# left and right vectors are no longer a global variable
+# wash wrapper function needed to be adjusted to use list variable
+
 # Function to shift a vector by n steps.
 shift = function(vec, n) {
   len = length(vec)
   new_vec = c(vec[(len - n):len], vec[1:(len - n - 1)])
   return(new_vec)
 }
-
 
 # Function to randomly swap two cards to each others' locations.
 # Mike adding a few things:
@@ -14,17 +19,21 @@ shift = function(vec, n) {
 # which makes sure there will never be out of bounds or negative indices for slicing
 # 4) The actual slicing from swap_out to swap_in becomes greatly simplified as a result of changes 2 and 3
 
-slice_inner = function(vec1, vec2) { # 1)
+slice_inner = function(deck) { # 1)
+  # Inputs list of left and right vectors
+  vec1 = deck[[1]]
+  vec2 = deck[[2]]
+  
   # Slice vectors into only inner columns
   vec1_inner = vec1[ceiling(length(vec1) / 2):length(vec1)]
   vec2_inner = vec2[ceiling(length(vec2) / 2):length(vec2)]
-  
   len1 = length(vec1_inner)
   len2 = length(vec2_inner)
   
   # Probability of the swap coming from vec1 to vec2
   p = len1 / (len1 + len2)
   condition = sample(0:1, 1, prob = c(p, (1 - p)))
+  
   # Choose which vector to swap from
   if (condition == 1) {
     swap_out = vec1_inner
@@ -49,28 +58,32 @@ slice_inner = function(vec1, vec2) { # 1)
   swap_out = c(swap_out[1:i],
                swap_out[(i + n + 1):k])
     
-    # Join vector halves back together
-    if (condition == 1) {
-      # Inner swap was left to right
-      vec1_new = c(vec1[1:(ceiling(length(vec1) / 2) - 1)], swap_out)
-      vec2_new = c(vec2[1:(ceiling(length(vec2) / 2) - 1)], swap_in)
-    }
-    else {
-      # Inner swap was right to left
-      vec1_new = c(vec1[1:(ceiling(length(vec1) / 2) - 1)], swap_in)
-      vec2_new = c(vec2[1:(ceiling(length(vec2) / 2) - 1)], swap_out)
-    }
-    
-    left = vec1_new
-    right = vec2_new
+  # Join vector halves back together
+  if (condition == 1) {
+    # Inner swap was left to right
+    vec1_new = c(vec1[1:(ceiling(length(vec1) / 2) - 1)], swap_out)
+    vec2_new = c(vec2[1:(ceiling(length(vec2) / 2) - 1)], swap_in)
   }
+  else {
+    # Inner swap was right to left
+    vec1_new = c(vec1[1:(ceiling(length(vec1) / 2) - 1)], swap_in)
+    vec2_new = c(vec2[1:(ceiling(length(vec2) / 2) - 1)], swap_out)
+  }
+
+  # Output list of new left and right vectors
+  deck = list(vec1_new, vec2_new)
+  return(deck)
 }
 
 # Mike adding a few things:
 # 1) Function name change to be consistent with slice_inner
 # 2) Changes made consistent with those also made in slice_inner
 
-slice_outer = function(vec1, vec2) { # 1)
+slice_outer = function(deck) { # 1)
+  # Inputs list of left and right vectors
+  vec1 = deck[[1]]
+  vec2 = deck[[2]]
+  
   # Slice vectors into columns
   vec1_outer = vec1[1:(ceiling(length(vec1) / 2) - 1)]
   vec2_inner = vec2[ceiling(length(vec2) / 2):length(vec2)]
@@ -128,30 +141,38 @@ slice_outer = function(vec1, vec2) { # 1)
   if (condition == 1) {
     # Outer swap on left side
     if (out_to_in == 1) {
-      left = c(swap_out, vec1_inner)
-      right = c(vec2_outer, swap_in)
+      vec1_new = c(swap_out, vec1_inner)
+      vec2_new = c(vec2_outer, swap_in)
     }
     else if (out_to_in == 0) {
-      left = c(swap_in, vec1_inner)
-      right = c(vec2_outer, swap_out)
+      vec1_new = c(swap_in, vec1_inner)
+      vec2_new = c(vec2_outer, swap_out)
     }
   }
   else {
     # Outer swap on right side
     if (out_to_in == 1) {
-      left = c(vec1_outer, swap_in)
-      right = c(swap_out, vec2_inner)
+      vec1_new = c(vec1_outer, swap_in)
+      vec2_new = c(swap_out, vec2_inner)
     }
     else if (out_to_in == 0) {
-      left = c(vec1_outer, swap_out)
-      right = c(swap_in, vec2_inner)
+      vec1_new = c(vec1_outer, swap_out)
+      vec2_new = c(swap_in, vec2_inner)
     }
   }
+  
+  # Output list of new left and right vectors
+  deck = list(vec1_new, vec2_new)
+  return(deck)
 }
 
 
 # Function to gather cards back into a single deck.
-gather = function(vec1, vec2) {
+gather = function(deck) {
+  # Inputs list of left and right vectors
+  vec1 = deck[[1]]
+  vec2 = deck[[2]]
+  
   # Slice vectors into columns
   col1 = vec1[ceiling(length(vec1) / 2):length(vec1)]
   col2 = vec1[1:(ceiling(length(vec1) / 2) - 1)]
@@ -293,40 +314,42 @@ wash = function(deck, cycles) {
   cut1 <- rbinom(n=1, size=52, prob=0.25)
   cut2 <- rbinom(n=1, size=(52-cut1), prob=(1/3)) + cut1
   cut3 <- rbinom(n=1, size=(52-cut2), prob=0.5) + cut2
-  left = deck[c(1:cut1, rev((cut2+1):cut3))]
-  right = deck[c(rev((cut3+1):52), (cut1+1):cut2)]
+  vec1 = deck[c(1:cut1, rev((cut2+1):cut3))] # Variable name change
+  vec2 = deck[c(rev((cut3+1):52), (cut1+1):cut2)] # Variable name change
   
+  # Deck will now be a list of left and right vectors
+  deck = list(vec1, vec2)
   
   for (i in 1:cycles) {
-    n = tpois(3, max=length(left)) # (3) Random length of shift
-    left = shift(left, n)
+    n = tpois(3, max=length(deck[[1]])) # (3) Random length of shift
+    deck[[1]] = shift(deck[[1]], n)
     
     for (j in 1:tpois(1.5, 5)) {
       outer_inner = sample(0:1, 1, prob=c(0.3, 0.7)) # making inner more likely
       
       if (outer_inner == 1) {
-        slice_inner(left, right) # 1)
+        deck = slice_inner(deck) # 1)
       }
       else {
-        slice_outer(left, right) # 1)
+        deck = slice_outer(deck) # 1)
       }
     }
     
-    n = tpois(3, max=length(right)) # Random length of shift
-    right = shift(right, n)
+    n = tpois(3, max=length(deck[[2]])) # Random length of shift
+    deck[[2]] = shift(deck[[2]], n)
     
     for (j in 1:tpois(1.5, 5)) {
       outer_inner = sample(0:1, 1, prob=c(0.3, 0.7))
       
       if (outer_inner == 1) {
-        slice_inner(left, right) # 1)
+        deck = slice_inner(deck) # 1)
       }
       else {
-        slice_outer(left, right) # 1)
+        deck = slice_outer(deck) # 1)
       }
     }
   }
   
-  deck = gather(left, right)
+  deck = gather(deck)
   return(deck) # (4) 
 }
