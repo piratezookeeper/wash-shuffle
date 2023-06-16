@@ -32,7 +32,7 @@ slice_inner = function(deck) { # 1)
   
   # Probability of the swap coming from vec1 to vec2
   p = len1 / (len1 + len2)
-  condition = sample(0:1, 1, prob = c(p, (1 - p)))
+  condition = sample(0:1, 1, prob = c((1 - p), p))
   
   # Choose which vector to swap from
   if (condition == 1) {
@@ -48,13 +48,16 @@ slice_inner = function(deck) { # 1)
   n = tpois(lambda = 4, max = (k - 2)) # 2)
   # (k - 2) ensures entire swap_out vector will never be sliced as a whole
   i = ceiling((k - n) / 2) # 3)
+
+  # Slice must go into center of swap_in, otherwise NA values may occur
+  center = ceiling(length(swap_in) / 2)
   
   # Swap cards
   # 4)
   slice = swap_out[i:(i + n)]
-  swap_in = c(swap_in[1:i],
+  swap_in = c(swap_in[1:center],
               slice,
-              swap_in[(i + 1):length(swap_in)])
+              swap_in[(center + 1):length(swap_in)])
   swap_out = c(swap_out[1:i],
                swap_out[(i + n + 1):k])
     
@@ -97,7 +100,7 @@ slice_outer = function(deck) { # 1)
   
   # Probability of the swap coming from vec1 to vec2
   p = len1_outer / (len1_outer + len2_outer)
-  condition = sample(0:1, 1, prob = c(p, (1 - p)))
+  condition = sample(0:1, 1, prob = c((1 - p), p))
   
   # Choose which vector to swap from
   if (condition == 1) {
@@ -128,12 +131,15 @@ slice_outer = function(deck) { # 1)
   n = tpois(lambda = 4, max = (k - 2))
   # (k - 2) ensures entire swap_out vector will never be sliced as a whole
   i = ceiling((k - n) / 2)
+
+  # Slice must go into center of swap_in, otherwise NA values may occur
+  center = ceiling(length(swap_in) / 2)
   
   # Swap cards
   slice = swap_out[i:(i + n)]
-  swap_in = c(swap_in[1:i],
+  swap_in = c(swap_in[1:center],
               slice,
-              swap_in[(i + 1):length(swap_in)])
+              swap_in[(center + 1):length(swap_in)])
   swap_out = c(swap_out[1:i],
                swap_out[(i + n + 1):k])
   
