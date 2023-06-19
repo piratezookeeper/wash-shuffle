@@ -54,12 +54,21 @@ slice_inner = function(deck) { # 1)
   
   # Swap cards
   # 4)
-  slice = swap_out[i:(i + n)]
-  swap_in = c(swap_in[1:center],
-              slice,
-              swap_in[(center + 1):length(swap_in)])
-  swap_out = c(swap_out[1:i],
-               swap_out[(i + n + 1):k])
+  if (length(swap_in) == 1) {
+    slice = swap_out[(i + 1):(i + n)]
+    swap_in = c(swap_in[1:center],
+                slice)
+    swap_out = c(swap_out[1:(i)],
+                 swap_out[(i + n + 1):k])
+  }
+  else {
+    slice = swap_out[(i + 1):(i + n)]
+    swap_in = c(swap_in[1:center],
+                slice,
+                swap_in[(center + 1):length(swap_in)])
+    swap_out = c(swap_out[1:(i)],
+                 swap_out[(i + n + 1):k])
+  }
     
   # Join vector halves back together
   if (condition == 1) {
