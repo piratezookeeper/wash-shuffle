@@ -189,6 +189,10 @@ gather = function(deck) {
 
 # This parent wash function does not yet work
 # Currently working on building a wash function from the bottom up
+
+# Quick change from Mike
+# 1. left/right vector lengths need to be generated inside j-level loops
+
 wash = function(deck, cycles) {
   deck = init_deck(deck)
   
@@ -199,12 +203,12 @@ wash = function(deck, cycles) {
     # Left hand movement
     n = tpois(3, max = length(deck$left))
     deck$left = roll(deck$left, n)
-    len_left = length(deck$left)
-    len_right = length(deck$right)
     
     slice_count1 = tpois(1.5, 5)
     
     for (j in 1:slice_count1) {
+      len_left = length(deck$left) # 1.
+      len_right = length(deck$right) # 1.
       # Pick which columns to slice
       deck = to_col(deck) # To column form
       if(len_left <= min_cards) {
@@ -249,12 +253,13 @@ wash = function(deck, cycles) {
     # Right hand movement
     n = tpois(3, max = length(deck$right))
     deck$right = roll(deck$right, n)
-    len_left = length(deck$left)
-    len_right = length(deck$right)
     
     slice_count2 = tpois(1.5, 5)
     
     for (j in 1:slice_count2) {
+      len_left = length(deck$left) # 1.
+      len_right = length(deck$right) # 1.
+      
       # Pick which columns to slice
       deck = to_col(deck) # To column form
       if(len_left <= min_cards) {
