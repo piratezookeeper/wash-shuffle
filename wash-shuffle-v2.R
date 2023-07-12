@@ -192,6 +192,7 @@ gather = function(deck) {
 
 # Quick change from Mike
 # 1. left/right vector lengths need to be generated inside j-level loops
+# 2. changed slice_count1 and slice_count2 to deterministically = 1
 
 wash = function(deck, cycles) {
   deck = init_deck(deck)
@@ -204,7 +205,7 @@ wash = function(deck, cycles) {
     n = tpois(3, max = length(deck$left))
     deck$left = roll(deck$left, n)
     
-    slice_count1 = tpois(1.5, 5)
+    slice_count1 = 1 # 2.
     
     for (j in 1:slice_count1) {
       len_left = length(deck$left) # 1.
@@ -254,7 +255,7 @@ wash = function(deck, cycles) {
     n = tpois(3, max = length(deck$right))
     deck$right = roll(deck$right, n)
     
-    slice_count2 = tpois(1.5, 5)
+    slice_count2 = 1 # 2.
     
     for (j in 1:slice_count2) {
       len_left = length(deck$left) # 1.
