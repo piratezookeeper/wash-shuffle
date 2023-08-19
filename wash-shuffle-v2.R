@@ -1,4 +1,5 @@
 # Initialize left/right vector structure for deck
+# test
 init_deck = function(deck) {
   # Random partitions for columns to for left/right vectors
   cut1 <- rbinom(n = 1, size = 52, prob = 0.25)
