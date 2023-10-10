@@ -1,0 +1,8 @@
+Can you change "Probability" on the y-axis to "Percentage" on this plot and Figure 6?
+
+And for the title, can you change that to "Probabilities of neighbor cards ending n cards apart after shuffling"? Same for title in Figure 6 too.
+
+
+Can you change the colors of the bars for Casino Shuffle and Wash then casino to match that of Figure 5?
+
+Also, small thing but in the legends, in Figure 5 you have "Wash and casino" and in Figure 6 you have "Wash then casino." Can you just make these match each other, whichever way you go?
