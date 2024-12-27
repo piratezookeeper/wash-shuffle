@@ -1,0 +1,251 @@
+---
+title: "white_paper_shuffles"
+author: "Mike Alexeev"
+output: pdf_document
+date: "2024-11-30"
+---
+
+```{r}
+library(ggplot2)
+```
+
+Need to model white paper shuffles
+Link to paper:
+https://arxiv.org/pdf/1910.02389
+
+Shuffle process A
+
+-Cards begins by occupying spaces 1 through n, where n is the total number of cards.
+-At each step, choose card randomly.
+-Chosen card moves left one step, right one step, or stays in place, with probabilities 0.25, 0.25, and 0.5 respectively.
+-The step size is calculated randomly.
+-Chosen card moves to that slot and other cards slide to make room.
+-This process is repeated for some specified number of steps.
+
+```{r}
+shuffle_process_a = function(new_deck, reps) {
+  # Loop to randomly move individual cards
+  for (rep in 1:reps) {
+    # Pull in a new deck
+    deck = new_deck
+    
+    # Pick a card and direction of travel
+    card = sample(deck, 1)
+    dir = sample(c(-1, 0, 1), 1, prob = c(0.25, 0.25, 0.5))
+    
+    # Initialize new location parameter
+    new_loc = 0
+    
+    # Choose new location for chosen card
+    if (dir == -1) {
+      new_loc = sample(c(1:card - 1), 1)
+    } else if (dir == 1) {
+      new_loc = sample(c(card + 1:52), 1)
+    }
+    
+    # Initialize blank deck
+    new_deck = NULL
+    
+    # Generate deck using new card placement
+    if (new_loc == 0) {
+      new_deck = deck
+    } else if (new_loc == 1) {
+      new_deck = c(card, deck[!deck == card])
+    } else if (new_loc == 52) {
+      new_deck = c(deck[!deck == card], card)
+    } else {
+      new_deck = append(deck[!deck == card], card, after = new_loc - 1)
+    }
+  }
+  return(new_deck)
+}
+# Check results
+new_deck = shuffle_process_a(1:52, 100)
+print(sum(new_deck) == sum(1:52))
+print(new_deck)
+```
+
+Shuffle process B
+
+-Cards begins by occupying spaces 1 through n, where n is the total number of cards.
+-At each step, every card moves a random number of spaces to the right according to independent geometric random variables.
+-Then every card moves a random number of spaces to the left according to the same distribution.
+-When cards enter an occupied position, they are merged with the cards already there by a GSR shuffle.
+-This is repeated for some specified number of steps, and then all piles are gathered together in order.
+
+```{r}
+shuffle_process_b = function(deck, n = 52) {
+  shift = rgeom(n = n, prob = 0.25) - rgeom(n = n, prob = 0.25)
+  deck = deck + shift
+  
+  # Initialize new_deck to store results
+  new_deck = numeric(n)
+  
+  # Track the remaining indices of the deck
+  remaining_indices = 1:n
+  
+  # Loop through each position in the new deck
+  for (i in 1:n) {
+    # Get the index of the smallest card in the remaining deck
+    min_index = remaining_indices[which.min(deck[remaining_indices])]
+    
+    # Get the corresponding card and adjust it by the shift
+    card = deck[min_index] - shift[min_index]
+    
+    # Store the adjusted card in the new_deck
+    new_deck[i] = card
+    
+    # Remove the processed card from the remaining_indices
+    remaining_indices = remaining_indices[remaining_indices != min_index]
+  }
+  return(new_deck)
+}
+# Check results
+new_deck = shuffle_process_b(1:52, 52)
+print(sum(new_deck) == sum(1:52))
+print(new_deck)
+
+```
+
+
+Shuffle process C
+
+-This is a generalization of Shuffling Process A into multiple dimensions.
+-For some number of dimensions d, cards begin by occupying arbitrary vertices in a d-dimensional grid.
+-At each step, choose a random card.
+-With probability ½, it remains at its current vertex.
+-Otherwise, with equal probability it will move to any neighboring vertex.
+-If a card moves to an occupied position, it is merged with the cards already there at a random position. 
+-This is repeated for some specified number of steps, and then all piles are gathered together in lexicographical order.
+
+```{r}
+# Initialize the positions of cards randomly across a d-dimensional bounded grid
+initialize_positions = function(num_cards, dims, grid_size) {
+  # Generate positions for cards randomly within a bounded grid
+  positions = matrix(sample(1:grid_size, num_cards * dims, replace = TRUE), ncol = dims)
+  return(positions)
+}
+
+# Get neighboring positions in a d-dimensional bounded grid
+get_neighbors = function(pos, grid_size) {
+  neighbors = list()
+  dims = length(pos)
+  for (i in 1:dims) {
+    for (delta in c(-1, 1)) {
+      neighbor = pos
+      neighbor[i] = neighbor[i] + delta
+      # Ensure neighbors are within the grid bounds
+      if (all(neighbor >= 1 & neighbor <= grid_size)) {
+        neighbors = append(neighbors, list(neighbor))
+      }
+    }
+  }
+  return(neighbors)
+}
+
+shuffle_process_c = function(num_cards, dims, reps, grid_size) {
+  # Generate starting positions randomly
+  positions = initialize_positions(num_cards, dims, grid_size)
+  
+  # Piles vector creates a list for each starting card
+  # Used to track the random positioning of overlapping card vertices
+  piles = vector("list", grid_size^dims)
+  
+  # Assign each card to its initial pile to track overlaps
+  for (i in 1:num_cards) {
+    index = paste(positions[i, ], collapse = ",")
+    if (is.null(piles[[index]])) {
+      piles[[index]] = list()
+    }
+    piles[[index]] = append(piles[[index]], i)
+  }
+  
+  # Perform shuffling
+  for (rep in 1:reps) {
+    card_index = sample(1:num_cards, 1)
+    current_position = positions[card_index, ]
+    
+    if (runif(1) > 0.5) {
+      # Card moves to a neighboring position
+      neighbors = get_neighbors(current_position, grid_size)
+      new_position = sample(neighbors, 1)[[1]]
+      
+      # Update piles
+      current_index = paste(current_position, collapse = ",")
+      new_index = paste(new_position, collapse = ",")
+      
+      # Remove card from current pile
+      piles[[current_index]] = setdiff(piles[[current_index]], card_index)
+      
+      # Add card to new pile, inserting at a random position
+      if (is.null(piles[[new_index]])) {
+        piles[[new_index]] = list()
+      }
+      piles[[new_index]] = append(
+        piles[[new_index]],
+        list(card_index),
+        after = sample(0:length(piles[[new_index]]), 1)
+      )
+      
+      # Update card position
+      positions[card_index, ] = new_position
+    }
+  }
+  
+  # Combine piles in lexicographic order
+  all_piles = list()
+  for (index in names(piles)) {
+    if (!is.null(piles[[index]])) {
+      all_piles = c(all_piles, unlist(piles[[index]]))
+    }
+  }
+  
+  return(unlist(all_piles))
+}
+
+# Check results
+new_deck = shuffle_process_c(num_cards = 52, dims = 3, reps = 100, grid_size = 5)
+print(sum(new_deck) == sum(1:52))
+print(new_deck)
+
+```
+
+```{r}
+reps = 1000
+
+# Vectors to track previous locations of community cards
+card14 = c(rep(0, 52))
+card15 = c(rep(0, 52))
+card16 = c(rep(0, 52))
+card18 = c(rep(0, 52))
+card20 = c(rep(0, 52))
+
+# Vector to track neighboring card frequency
+neighbors = c(rep(0, 52))
+
+for (rep in 1:reps) {
+  #deck = shuffle_process_a(deck = 1:52, reps = 100)
+  #deck = shuffle_process_b(deck = 1:52, n = 52)
+  deck = shuffle_process_c(num_cards = 52, dims = 3, reps = 100, grid_size = 5)
+  #deck = casino_shuffle(deck = 1:52)
+  
+  # Record previous positions of cards
+  card14[deck[14]] = card14[deck[14]] + 1
+  card15[deck[15]] = card15[deck[15]] + 1
+  card16[deck[16]] = card16[deck[16]] + 1
+  card18[deck[18]] = card18[deck[18]] + 1
+  card20[deck[20]] = card20[deck[20]] + 1
+  
+  # Record neighboring card positions
+  for (k in 1:52) {
+    neighbors[k] = neighbors[k] + sum(diff(deck) == k)
+  }
+}
+deck
+neighbors = neighbors / reps
+card14 = card14 / reps
+card15 = card15 / reps
+card16 = card16 / reps
+card18 = card18 / reps
+card20 = card20 / reps
+```
