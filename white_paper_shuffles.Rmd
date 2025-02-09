@@ -38,9 +38,19 @@ shuffle_process_a = function(new_deck, reps) {
     
     # Choose new location for chosen card
     if (dir == -1) {
-      new_loc = sample(c(1:card - 1), 1)
+      # card moves 1 space to the left
+      new_loc = card - 1
+      if (new_loc < 1) {
+        # card can move from pos 1 to pos 52 (in a circle)
+        new_loc = 52
+      }
     } else if (dir == 1) {
-      new_loc = sample(c(card + 1:52), 1)
+      # card moves 1 space to the right
+      new_loc = card + 1
+      if (new_loc > 52) {
+        # card can move from pos 52 to pos 1 (in a circle)
+        new_loc = 1
+      }
     }
     
     # Initialize blank deck
@@ -70,12 +80,27 @@ Shuffle process B
 -Cards begins by occupying spaces 1 through n, where n is the total number of cards.
 -At each step, every card moves a random number of spaces to the right according to independent geometric random variables.
 -Then every card moves a random number of spaces to the left according to the same distribution.
+-Cards cannot go past positions 1 and 52.
 -When cards enter an occupied position, they are merged with the cards already there by a GSR shuffle.
 -This is repeated for some specified number of steps, and then all piles are gathered together in order.
 
 ```{r}
-shuffle_process_b = function(deck, n = 52) {
+shuffle_process_b = function(deck) {
+  n = max(deck)
   shift = rgeom(n = n, prob = 0.25) - rgeom(n = n, prob = 0.25)
+  
+  for (move in shift) {
+    index = which(shift == move)[1]
+    if (index + move < 1) {
+      # if shift will move card into negative territory, card goes to pos 1
+      shift[index] = 1
+    }
+    else if (index + move > 52) {
+      # if shift will move card past pos 52, card goes to pos 52
+      shift[index] = 52
+    }
+  }
+  
   deck = deck + shift
   
   # Initialize new_deck to store results
