@@ -22,8 +22,6 @@ make_move <- function(deck){
   to_move <- sample(52, size=1)
   
   # now get the card's location
-  # 6/13 THIS DOESN'T WORK YET
-  # 4/8/25 I think this works
   ind <- which(sapply(deck, function(e) is.element(to_move, e)))
 
   # determine if and where it will move to -- 4/8/25 still in progress here
@@ -75,8 +73,10 @@ shuffleA(deck,1000)
 
 # Shuffle Process B
 
-# Wrapper function
 # its input should be a deck in vector format
+# Following Remark 26: move cards one at a time, inserting them at a random position
+# in the pile at their destination
+
 shuffleB <- function(deck, p, t){
   n <- length(deck)
   deck <- as.list(deck)
@@ -87,10 +87,8 @@ shuffleB <- function(deck, p, t){
       ind <- which(sapply(deck, function(e) is.element(j, e)))
       new_ind <- ind + moves[j] # go to the right
       if(new_ind > 52){
-        new_ind <- 52
-      } else if(new_ind < 1){
-        new_ind <- 1
-      }
+        new_ind <- 52 # do not go past 52
+      } 
       
       if(new_ind != ind){
         deck[[new_ind]] <- place_card(deck[[new_ind]], j) # Remark 26: insert at random position
@@ -103,10 +101,8 @@ shuffleB <- function(deck, p, t){
     for(j in 1:n){  
       ind <- which(sapply(deck, function(e) is.element(j, e)))
       new_ind <- ind - moves[j] # go to the left
-      if(new_ind > 52){
-        new_ind <- 52
-      } else if(new_ind < 1){
-        new_ind <- 1
+      if(new_ind < 1){
+        new_ind <- 1 # do not go past 1
       }
       
       if(new_ind != ind){
