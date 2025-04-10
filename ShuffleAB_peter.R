@@ -46,15 +46,6 @@ make_move <- function(deck){
 
 
 
-# Initialize deck as list, is there no better way to do this?
-#deck <- list()
-#for(i in 1:52){
-#  deck[[i]] <- i
-#}
-
-# 4/8/25
-# Initialize deck as a matrix
-deck <- matrix(rep(1:52,2), nrow=2, byrow=TRUE)
 
 # Wrapper function
 # its input should be a deck in vector format
@@ -84,7 +75,7 @@ shuffleB <- function(deck, p, t){
     # sweep to the right
     moves <- (rgeom(n, p) + 1) # rgeom in R is failures; paper defines it as trials
     for(j in 1:n){  
-      ind <- which(sapply(deck, function(e) is.element(j, e)))
+      ind <- which(sapply(deck, function(e) is.element(j, e))) # get the location of the card to move
       new_ind <- ind + moves[j] # go to the right
       if(new_ind > 52){
         new_ind <- 52 # do not go past 52
@@ -92,7 +83,7 @@ shuffleB <- function(deck, p, t){
       
       if(new_ind != ind){
         deck[[new_ind]] <- place_card(deck[[new_ind]], j) # Remark 26: insert at random position
-        deck[[ind]] <- deck[[ind]][-which(deck[[ind]]==j)]
+        deck[[ind]] <- deck[[ind]][-which(deck[[ind]]==j)] # remove it from its previous position
       }
     }
     
