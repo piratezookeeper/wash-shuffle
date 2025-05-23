@@ -24,10 +24,10 @@ make_move <- function(deck){
   # now get the card's location
   ind <- which(sapply(deck, function(e) is.element(to_move, e)))
 
-  # determine if and where it will move to -- 4/8/25 still in progress here
+  # determine if and where it will move to
   move <- sample(c(-1, 0, 1), size=1, prob = c(0.25, 0.5, 0.25))
   
-  # Do nothing if it doesn't move, otherwise move it (not done yet)
+  # Do nothing if it doesn't move, otherwise move it
   if(move !=0){
     if(ind == 1 & move == -1){
       new_ind <- 52
@@ -105,3 +105,143 @@ shuffleB <- function(deck, p, t){
   }
   return(unlist(deck))
 }
+
+
+# Shuffle Process C
+# Specifically for d=2
+
+# Function to place a card in a pile at any spot if cards are already there
+place_card <- function(spot, new_card){
+  if(length(spot) == 1){
+    return(c(spot, new_card)[sample(2)])  # return the 2 cards in random order
+  } else{
+    placement <- sample(length(spot)+1, size=1)
+    if(placement == 1){
+      return(c(new_card, spot))
+    } else if(placement == (length(spot) + 1)) {
+      return(c(spot, new_card))
+    } else{
+      return(c(spot[1:(placement-1)], new_card, spot[placement:length(spot)]))
+    }
+  }
+}
+
+
+# Function to move a card to a new location
+make_moveC <- function(deck){
+  # pick card, not location
+  to_move <- sample(52, size=1)
+  
+  # now get the card's location
+  ind1 <- NA
+  ind2 <- NA
+  i <- 1
+  j <- 1
+  
+  while(is.na(ind1) | is.na(ind2)){
+    if(is.element(to_move, deck[[i]][[j]])){
+      ind1 <- i
+      ind2 <- j
+    }
+    i <- ifelse(j==52, i+1, i)
+    j <- ifelse(j==52, 1, j+1)
+  }
+  
+#  ind1 <- which(sapply(deck, function(e) is.element(to_move, e)))
+#  ind2 <- which(sapply(deck[[ind1]], function(e) is.element(to_move, e)))
+
+  ind1x <- ind1
+  ind2x <- ind2
+  
+  # can keep it like this, and then 50/50 chance of moving vertically or horizontally
+  # sort of (with adjustments as below)
+  move <- sample(c(-1, 0, 1), size=1, prob = c(0.25, 0.5, 0.25))
+  
+  # Do nothing if it doesn't move, otherwise move it
+  if(move !=0){
+    # pick which direction it will move in
+    # if the card is not on an edge of the grid, this is all we need to do
+    # otherwise we need to adjust probabilities
+    dir <- sample(c(1,2), size=1)
+    if(dir == 1){
+      ind1 <- ind1 + move
+      if(ind1 == 0){
+        if(ind2 == 1 | ind2==52){
+          # this means the card was in a corner of the grid, meaning
+          # there are only 2 neighbors
+          # In this case, just move ind1 the other way
+          # This will occur with overall probability 0.5*0.5 as it should
+          ind1 <- 2
+        } else{
+          # otherwise, need to balance probability for two ind2 options
+          # if we get to here, this means that the card is on an edge, but not in a corner
+          # all moves should have overall probability 1/6 
+          # The probability of getting here is 0.5*0.5 = 1/4, so we need to adjust that down to 1/6
+          # 1/4 * 2/3 = 1/6
+          adj <- sample(c(1,2), size=1, prob=c(2/3, 1/3))
+          if(adj==1){
+            ind1 <- 2
+          } else {
+            # with 1/3 probability, we do not move ind1,
+            # and send it over to move in the other direction
+            dir <- 2
+            # and move ind1 back
+            ind1 <- ind1 - move
+          }
+        }
+      }
+      if(ind1 == 53){
+        if(ind2 == 1 | ind2==52){
+          # in this case, just move ind1 the other way
+          ind1 <- 51
+        } else {
+          # otherwise, again need to balance probability
+          adj <- sample(c(1,2), size=1, prob=c(2/3, 1/3))
+          if(adj==1){
+            ind1 <- 51
+          } else {
+            dir <- 2
+            # and move ind1 back
+            ind1 <- ind1 - move
+          }
+        }
+      }
+    }
+    if(dir==2){
+      ind2 <- ind2 + move
+      if(ind2 == 0){
+        ind2 <- 2
+      }
+      if(ind2 == 53){
+        ind2 <- 51
+      }
+    }
+    # I think this works -- all moves should have the correct probability
+
+    # need to remove card from where it came
+    deck[[ind1]][[ind2]] <- place_card(deck[[ind1]][[ind2]], to_move)
+    deck[[ind1x]][[ind2x]] <- deck[[ind1x]][[ind2x]][-which(deck[[ind1x]][[ind2x]]==to_move)]
+    
+  }  
+  return(deck)
+}
+
+
+# Wrapper function
+# its input should be a deck in vector format
+shuffleC <- function(deck, iterations){
+  # 2-dimensional list
+  deck <- list(as.list(deck))
+  for(i in 2:52){
+    deck[[i]] <- as.list(rep(NA, 52))
+    # inefficient but I don't see any other way
+    for(j in 1:52){
+      deck[[i]][[j]] <- integer(0)
+    }
+  }
+  for(i in 1:iterations){
+    deck <- make_moveC(deck)
+  }
+  return(unlist(deck))
+}
+
