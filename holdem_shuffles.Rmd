@@ -1,0 +1,368 @@
+---
+title: "holdem_shuffles"
+author: "Mike Alexeev"
+date: "2023-07-09"
+output: pdf_document
+---
+
+Adjust graphing functions from:
+Merz, David W., and Peter B. Chi. "Knowing When to Fold'em: A Monte Carlo Exploration of Card Shuffling and How Poker Players Can Gain an Advantage." UNLV Gaming Research & Review Journal 26.1 (2022): 7.
+
+Purpose: to plot results that include the Alexeev, Chi wash shuffle model.
+
+```{r}
+library(tictoc)
+```
+
+```{r}
+riffle_shuffle = function(deck) {
+  cut_point = rbinom(n = 1,
+                     size = length(deck),
+                     prob = 1 / 2)
+  left = deck[1:cut_point]
+  right = deck[(cut_point + 1):length(deck)]
+  riffled_deck = c()
+  for (i in 1:length(deck)) {
+    A = length(left)
+    B = length(right)
+    random = runif(1)
+    odds_left_heap_drop = A / (A + B)
+    if (random < odds_left_heap_drop) {
+      card_added = left[A]
+      left = left[-A]
+      A = A - 1
+    } else {
+      card_added = right[B]
+      right = right[-B]
+      B = B - 1
+    }
+    riffled_deck = c(card_added, riffled_deck)
+  }
+  return(riffled_deck)
+}
+
+many_riffle_shuffles = function(deck, iter) {
+  for (i in 1:iter) {
+    deck = riffle_shuffle(deck)
+  }
+  return(deck)
+}
+```
+
+```{r}
+strip_shuffle = function(deck) {
+  A = rbinom(n = 1,
+             size = length(deck),
+             prob = 1 / 4)
+  B = rbinom(n = 1,
+             size = (length(deck) - A),
+             prob = 1 / 3)
+  C = rbinom(n = 1,
+             size = (length(deck) - A - B),
+             prob = 1 / 2)
+  D = length(deck) - C - B - A
+  strip = c(tail(deck, D), deck[(A + B + 1):(A + B + C)], deck[(A + 1):(A +
+                                                                          B)], deck[1:A])
+  return(strip)
+}
+```
+
+```{r}
+deck_cut = function(deck) {
+  cut_pos = rbinom(n = 1,
+                   size = length(deck),
+                   prob = 1 / 2)
+  cut_deck = c(deck[(cut_pos + 1):length(deck)], deck[1:cut_pos])
+  return(cut_deck)
+}
+```
+
+```{r}
+holdem_shuffle = function(deck) {
+  shuffled_deck = many_riffle_shuffles(1:52, 2)
+  shuffled_deck = strip_shuffle(shuffled_deck)
+  shuffled_deck = many_riffle_shuffles(shuffled_deck, 1)
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+```
+
+```{r}
+alt_shuffle5 = function(deck){
+  shuffled_deck = many_riffle_shuffles(deck,5)
+  shuffled_deck = strip_shuffle(shuffled_deck)
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+```
+
+returns a deck cut at a certain probability
+```{r}
+deck_cut_at_prob = function(deck, cut_odds) {
+  z = cut_odds
+  cards_cut = rbinom(n = 1,
+                     size = length(deck),
+                     prob = z)
+  
+  if (cards_cut == length(deck)) {
+    return(deck)
+  }
+  deck_1 = c()
+  for (x in 1:length(deck)) {
+    if (x <= cards_cut) {
+      deck_1 = append(deck_1, deck[x])
+    }
+  }
+  return(deck_1)
+}
+```
+
+returns the rest of the deck
+```{r}
+rest_of_deck = function(deck, deck1) {
+  deck_2 = c()
+  if (length(deck1) == length(deck)) {
+    return(deck_2)
+  }
+  for (x in (length(deck1) + 1):length(deck)) {
+    deck_2 = append(deck_2, deck[x])
+  }
+  return(deck_2)
+}
+```
+
+takes about 2 seconds per shuffle move for an experienced dealer
+6 riffles and a cut takes 14 seconds
+```{r}
+better_shuffle = function(deck) {
+  shuffled_deck = many_riffle_shuffles(1:52, 7)
+  return(shuffled_deck)
+}
+```
+
+Wash shuffle plus casino shuffle parent function.
+This is for plotting, not for the Alexeev, Chi model.
+```{r}
+wash_and_casino = function(deck) {
+  deck = wash(deck, 4)
+  deck = casino_shuffle(deck)
+  deck = array(deck)
+  return(deck)
+}
+```
+
+odds of the neighbor of a card being that close to the card after the shuffle 
+i.e. any card in the decks neighbor has about a 12.45 % chance of being it's neighbor again. 
+```{r}
+card_neighbors_counts = function(sims, shuffle_type, cards) {
+  clumps_odds = list()
+  bef =  matrix(0, nrow = 52, ncol = 52)
+  before1 = list()
+  for (i in 1:cards) {
+    before1 = append(before1, list(bef))
+  }
+  for (i in 1:sims) {
+    if (sims / 10000 == 0) {print(sims)}
+    shuf = shuffle_type(1:52)
+    
+    for (x in 1:52) {
+      for (z in 1:cards) {
+        pos = match(x, shuf)
+        if ((pos - z) > 0) {
+          before = shuf[pos - z]
+          before1[[z]][x, before] = before1[[z]][x, before] + 1
+        }
+      }
+    }
+  }
+  list_of_maxs = list()
+  for (i in 1:cards) {
+    vals = c()
+    for (x in 2:52) {
+      before_val = before1[[i]][x, (x - 1)]
+      vals = append(vals, before_val)
+    }
+    list_of_maxs = append(list_of_maxs, list(vals))
+  }
+  #names(list_of_maxs) = c(1:cards)
+  return(list_of_maxs)
+}
+```
+
+alt shuffles
+```{r}
+alt3_shuffle1 = function(deck){
+  shuffled_deck = many_riffle_shuffles(deck,2)
+  shuffled_deck = strip_shuffle(shuffled_deck)
+  shuffled_deck = many_riffle_shuffles(shuffled_deck,1)
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+
+alt3_shuffle2 = function(deck){
+  shuffled_deck = many_riffle_shuffles(deck,1)
+  shuffled_deck = strip_shuffle(shuffled_deck)
+  shuffled_deck = many_riffle_shuffles(shuffled_deck,2)
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+
+alt3_shuffle3 = function(deck){
+  shuffled_deck = many_riffle_shuffles(deck,3)
+  shuffled_deck = strip_shuffle(shuffled_deck)
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+
+alt3_shuffle4 = function(deck){
+  shuffled_deck = strip_shuffle(deck)
+  shuffled_deck = many_riffle_shuffles(shuffled_deck,3)
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+
+alt3_shuffle3 = function(deck){
+  shuffled_deck = many_riffle_shuffles(deck,3)
+  shuffled_deck = strip_shuffle(shuffled_deck)
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+
+alt4_shuffle5 = function(deck){
+  shuffled_deck = many_riffle_shuffles(deck,4)
+  shuffled_deck = strip_shuffle(shuffled_deck)
+  
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+
+alt_shuffle5 = function(deck){
+  shuffled_deck = many_riffle_shuffles(deck,5)
+  shuffled_deck = strip_shuffle(shuffled_deck)
+  shuffled_deck = deck_cut(shuffled_deck)
+  return(shuffled_deck)
+}
+```
+
+
+shell functions for shuffle processes A and B
+```{r}
+shuffleA_shell = function(deck){
+  shuffled_deck = shuffleA(deck, iterations=1248)
+  shuffled_deck = casino_shuffle(shuffled_deck)
+  shuffled_deck = array(shuffled_deck)
+  return(shuffled_deck)
+}
+
+shuffleB_shell = function(deck){
+  shuffled_deck = shuffleB(deck, p=1/3, t=4)
+  shuffled_deck = casino_shuffle(shuffled_deck)
+  shuffled_deck = array(shuffled_deck)
+  return(shuffled_deck)
+}
+
+shuffleC_shell = function(deck){
+  shuffled_deck = shuffleC(deck, iterations=1248)
+  shuffled_deck = casino_shuffle(shuffled_deck)
+  shuffled_deck = array(shuffled_deck)
+  return(shuffled_deck)
+}
+
+```
+
+
+odds of the neighbor of a card being that close to the card after the shuffle
+i.e. any card in the decks neighbor has about a 12.45 % chance of being it's neighbor again. 
+```{r}
+average_neighbor = function(sims, shuffle, cards) {
+  maxs = card_neighbors_counts(sims, shuffle, cards)
+  before_after_vals = c()
+  for (i in 1:cards) {
+    val = (sum(unlist(maxs[i])) * 100) / (sims * 51)
+    before_after_vals = append(before_after_vals, val)
+  }
+  names(before_after_vals) = c(1:cards)
+  return(before_after_vals)
+}
+
+iterations = 10000
+cards = 52
+
+tic()
+hold = average_neighbor(iterations, holdem_shuffle, cards)
+wash_neighbors = average_neighbor(iterations, wash_and_casino, cards)
+riffle = average_neighbor(iterations, better_shuffle, cards)
+processA = average_neighbor(iterations, shuffleA_shell, cards)
+processB = average_neighbor(iterations, shuffleB_shell, cards)
+processC = average_neighbor(iterations, shuffleC_shell, cards)
+alt3_1 = average_neighbor(iterations,alt3_shuffle1,cards)
+alt3_2 = average_neighbor(iterations,alt3_shuffle2,cards)
+alt3_3 = average_neighbor(iterations,alt3_shuffle3,cards)
+alt3_4 = average_neighbor(iterations,alt3_shuffle4,cards)
+alt5 = average_neighbor(iterations, alt_shuffle5, cards)
+alt3_3 = average_neighbor(iterations,alt3_shuffle3,cards)
+alt4_5 = average_neighbor(iterations,alt4_shuffle5,cards)
+alt5 = average_neighbor(iterations,alt_shuffle5,cards)
+toc()
+
+wash_neighbors
+```
+
+```{r}
+data_matrix = c()
+for (i in 1:52) {
+  data_matrix = append(data_matrix, unlist(wash_neighbors_50_50[i]))
+  data_matrix = append(data_matrix, unlist(wash_neighbors_60_40[i]))
+  data_matrix = append(data_matrix, unlist(wash_neighbors_70_30[i]))
+  data_matrix = append(data_matrix, unlist(wash_neighbors_80_20[i]))
+}
+
+data <- data.frame(
+  values = data_matrix,
+  group = rep(c(1:52), each = 4),
+  subgroup = rep(
+    c(
+      "50/50",
+      "60/40",
+      "70/30",
+      "80/20"
+    ),
+    times = 52
+  )
+)
+
+ggplot(
+  data,
+  aes(
+    x = group,
+    y = values,
+    fill = factor(
+      subgroup,
+      levels = c(
+      "50/50",
+      "60/40",
+      "70/30",
+      "80/20"
+      )
+    )
+    
+       )) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Percentages of neighbor cards ending n cards apart after shuffling",
+       x = "Cards apart",
+       y = "Percentage",
+       fill = "shuffle") +
+  geom_abline(
+    intercept = (100 / 51),
+    slope = (-100 / (52 * 51)),
+    color = "black",
+    linetype = "dashed"
+  ) +
+  theme(
+    plot.title = element_text(size = 20, hjust = .5),
+    legend.title = element_text(size = 20),
+    legend.text = element_text(size = 15),
+    text = element_text(size = 20)
+  ) +
+  scale_fill_manual(values = c("#F8766D", "#6BAED6", "#2CA25F", "#8856A7"))
+```
