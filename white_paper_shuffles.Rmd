@@ -23,56 +23,65 @@ Shuffle process A
 -This process is repeated for some specified number of steps.
 
 ```{r}
-shuffle_process_a = function(new_deck, reps) {
-  # Loop to randomly move individual cards
-  for (rep in 1:reps) {
-    # Pull in a new deck
-    deck = new_deck
-    
-    # Pick a card and direction of travel
-    card = sample(deck, 1)
-    dir = sample(c(-1, 0, 1), 1, prob = c(0.25, 0.25, 0.5))
-    
-    # Initialize new location parameter
-    new_loc = 0
-    
-    # Choose new location for chosen card
-    if (dir == -1) {
-      # card moves 1 space to the left
-      new_loc = card - 1
-      if (new_loc < 1) {
-        # card can move from pos 1 to pos 52 (in a circle)
-        new_loc = 52
-      }
-    } else if (dir == 1) {
-      # card moves 1 space to the right
-      new_loc = card + 1
-      if (new_loc > 52) {
-        # card can move from pos 52 to pos 1 (in a circle)
-        new_loc = 1
-      }
-    }
-    
-    # Initialize blank deck
-    new_deck = NULL
-    
-    # Generate deck using new card placement
-    if (new_loc == 0) {
-      new_deck = deck
-    } else if (new_loc == 1) {
-      new_deck = c(card, deck[!deck == card])
-    } else if (new_loc == 52) {
-      new_deck = c(deck[!deck == card], card)
-    } else {
-      new_deck = append(deck[!deck == card], card, after = new_loc - 1)
+# Function to place a card in a pile at any spot if cards are already there
+place_card <- function(spot, new_card){
+  if(length(spot) == 1){
+    return(c(spot, new_card)[sample(2)])  # return the 2 cards in random order
+  } else{
+    placement <- sample(length(spot)+1, size=1)
+    if(placement == 1){
+      return(c(new_card, spot))
+    } else if(placement == (length(spot) + 1)) {
+      return(c(spot, new_card))
+    } else{
+      return(c(spot[1:(placement-1)], new_card, spot[placement:length(spot)]))
     }
   }
-  return(new_deck)
 }
-# Check results
-new_deck = shuffle_process_a(1:52, 100)
-print(sum(new_deck) == sum(1:52))
-print(new_deck)
+
+# Function to move a card to a new location
+make_move <- function(deck){
+  # pick card, not location
+  to_move <- sample(52, size=1)
+  
+  # now get the card's location
+  ind <- which(sapply(deck, function(e) is.element(to_move, e)))
+
+  # determine if and where it will move to -- 4/8/25 still in progress here
+  move <- sample(c(-1, 0, 1), size=1, prob = c(0.25, 0.5, 0.25))
+  
+  # Do nothing if it doesn't move, otherwise move it (not done yet)
+  if(move !=0){
+    if(ind == 1 & move == -1){
+      new_ind <- 52
+    } else if(ind == 52 & move == 1){
+      new_ind <- 1
+    } else {
+      new_ind <- ind + move
+    }
+
+    deck[[new_ind]] <- place_card(deck[[new_ind]], to_move)
+    deck[[ind]] <- deck[[ind]][-which(deck[[ind]]==to_move)]
+    # need to remove card from where it came, too
+  }  
+  return(deck)
+}
+
+# Wrapper function
+# its input should be a deck in vector format
+shuffleA <- function(deck, iterations){
+  deck <- as.list(deck)
+  for(i in 1:iterations){
+    deck <- make_move(deck)
+  }
+  return(unlist(deck))
+}
+
+set.seed(12)
+deck <- 1:52
+shuffleA(deck, iterations=1248)
+
+
 ```
 
 Shuffle process B
@@ -85,154 +94,51 @@ Shuffle process B
 -This is repeated for some specified number of steps, and then all piles are gathered together in order.
 
 ```{r}
-shuffle_process_b = function(deck) {
-  n = max(deck)
-  shift = rgeom(n = n, prob = 0.25) - rgeom(n = n, prob = 0.25)
-  
-  for (move in shift) {
-    index = which(shift == move)[1]
-    if (index + move < 1) {
-      # if shift will move card into negative territory, card goes to pos 1
-      shift[index] = 1
-    }
-    else if (index + move > 52) {
-      # if shift will move card past pos 52, card goes to pos 52
-      shift[index] = 52
-    }
-  }
-  
-  deck = deck + shift
-  
-  # Initialize new_deck to store results
-  new_deck = numeric(n)
-  
-  # Track the remaining indices of the deck
-  remaining_indices = 1:n
-  
-  # Loop through each position in the new deck
-  for (i in 1:n) {
-    # Get the index of the smallest card in the remaining deck
-    min_index = remaining_indices[which.min(deck[remaining_indices])]
-    
-    # Get the corresponding card and adjust it by the shift
-    card = deck[min_index] - shift[min_index]
-    
-    # Store the adjusted card in the new_deck
-    new_deck[i] = card
-    
-    # Remove the processed card from the remaining_indices
-    remaining_indices = remaining_indices[remaining_indices != min_index]
-  }
-  return(new_deck)
-}
-# Check results
-new_deck = shuffle_process_b(1:52, 52)
-print(sum(new_deck) == sum(1:52))
-print(new_deck)
+# its input should be a deck in vector format
+# Following Remark 26: move cards one at a time, inserting them at a random position
+# in the pile at their destination
 
-```
-
-
-Shuffle process C
-
--This is a generalization of Shuffling Process A into multiple dimensions.
--For some number of dimensions d, cards begin by occupying arbitrary vertices in a d-dimensional grid.
--At each step, choose a random card.
--With probability ½, it remains at its current vertex.
--Otherwise, with equal probability it will move to any neighboring vertex.
--If a card moves to an occupied position, it is merged with the cards already there at a random position. 
--This is repeated for some specified number of steps, and then all piles are gathered together in lexicographical order.
-
-```{r}
-# Initialize the positions of cards randomly across a d-dimensional bounded grid
-initialize_positions = function(num_cards, dims, grid_size) {
-  # Generate positions for cards randomly within a bounded grid
-  positions = matrix(sample(1:grid_size, num_cards * dims, replace = TRUE), ncol = dims)
-  return(positions)
-}
-
-# Get neighboring positions in a d-dimensional bounded grid
-get_neighbors = function(pos, grid_size) {
-  neighbors = list()
-  dims = length(pos)
-  for (i in 1:dims) {
-    for (delta in c(-1, 1)) {
-      neighbor = pos
-      neighbor[i] = neighbor[i] + delta
-      # Ensure neighbors are within the grid bounds
-      if (all(neighbor >= 1 & neighbor <= grid_size)) {
-        neighbors = append(neighbors, list(neighbor))
+shuffleB <- function(deck, p, t){
+  n <- length(deck)
+  deck <- as.list(deck)
+  for(i in 1:t){
+    # sweep to the right
+    moves <- (rgeom(n, p) + 1) # rgeom in R is failures; paper defines it as trials
+    for(j in 1:n){  
+      ind <- which(sapply(deck, function(e) is.element(j, e))) # get the location of the card to move
+      new_ind <- ind + moves[j] # go to the right
+      if(new_ind > 52){
+        new_ind <- 52 # do not go past 52
+      } 
+      
+      if(new_ind != ind){
+        deck[[new_ind]] <- place_card(deck[[new_ind]], j) # Remark 26: insert at random position
+        deck[[ind]] <- deck[[ind]][-which(deck[[ind]]==j)] # remove it from its previous position
       }
     }
-  }
-  return(neighbors)
-}
-
-shuffle_process_c = function(num_cards, dims, reps, grid_size) {
-  # Generate starting positions randomly
-  positions = initialize_positions(num_cards, dims, grid_size)
-  
-  # Piles vector creates a list for each starting card
-  # Used to track the random positioning of overlapping card vertices
-  piles = vector("list", grid_size^dims)
-  
-  # Assign each card to its initial pile to track overlaps
-  for (i in 1:num_cards) {
-    index = paste(positions[i, ], collapse = ",")
-    if (is.null(piles[[index]])) {
-      piles[[index]] = list()
-    }
-    piles[[index]] = append(piles[[index]], i)
-  }
-  
-  # Perform shuffling
-  for (rep in 1:reps) {
-    card_index = sample(1:num_cards, 1)
-    current_position = positions[card_index, ]
     
-    if (runif(1) > 0.5) {
-      # Card moves to a neighboring position
-      neighbors = get_neighbors(current_position, grid_size)
-      new_position = sample(neighbors, 1)[[1]]
-      
-      # Update piles
-      current_index = paste(current_position, collapse = ",")
-      new_index = paste(new_position, collapse = ",")
-      
-      # Remove card from current pile
-      piles[[current_index]] = setdiff(piles[[current_index]], card_index)
-      
-      # Add card to new pile, inserting at a random position
-      if (is.null(piles[[new_index]])) {
-        piles[[new_index]] = list()
+    # sweep to the left
+    moves <- (rgeom(n, p) + 1) # rgeom in R is failures; paper defines it as trials
+    for(j in 1:n){  
+      ind <- which(sapply(deck, function(e) is.element(j, e)))
+      new_ind <- ind - moves[j] # go to the left
+      if(new_ind < 1){
+        new_ind <- 1 # do not go past 1
       }
-      piles[[new_index]] = append(
-        piles[[new_index]],
-        list(card_index),
-        after = sample(0:length(piles[[new_index]]), 1)
-      )
       
-      # Update card position
-      positions[card_index, ] = new_position
-    }
+      if(new_ind != ind){
+        deck[[new_ind]] <- place_card(deck[[new_ind]], j)
+        deck[[ind]] <- deck[[ind]][-which(deck[[ind]]==j)]
+      }
+    }  
+
   }
-  
-  # Combine piles in lexicographic order
-  all_piles = list()
-  for (index in names(piles)) {
-    if (!is.null(piles[[index]])) {
-      all_piles = c(all_piles, unlist(piles[[index]]))
-    }
-  }
-  
-  return(unlist(all_piles))
+  return(unlist(deck))
 }
 
-# Check results
-new_deck = shuffle_process_c(num_cards = 52, dims = 3, reps = 100, grid_size = 5)
-print(sum(new_deck) == sum(1:52))
-print(new_deck)
-
+set.seed(12)
+deck <- 1:52
+shuffleB(deck, p=1/3, t=4)
 ```
 
 ```{r}
@@ -273,4 +179,147 @@ card15 = card15 / reps
 card16 = card16 / reps
 card18 = card18 / reps
 card20 = card20 / reps
+```
+
+Shuffle process C
+
+```{r}
+# Shuffle Process C
+# Specifically for d=2
+
+# Function to place a card in a pile at any spot if cards are already there
+place_card <- function(spot, new_card){
+  if(length(spot) == 1){
+    return(c(spot, new_card)[sample(2)])  # return the 2 cards in random order
+  } else{
+    placement <- sample(length(spot)+1, size=1)
+    if(placement == 1){
+      return(c(new_card, spot))
+    } else if(placement == (length(spot) + 1)) {
+      return(c(spot, new_card))
+    } else{
+      return(c(spot[1:(placement-1)], new_card, spot[placement:length(spot)]))
+    }
+  }
+}
+
+
+# Function to move a card to a new location
+make_moveC <- function(deck){
+  # pick card, not location
+  to_move <- sample(52, size=1)
+  
+  # now get the card's location
+  ind1 <- NA
+  ind2 <- NA
+  i <- 1
+  j <- 1
+  
+  while(is.na(ind1) | is.na(ind2)){
+    if(is.element(to_move, deck[[i]][[j]])){
+      ind1 <- i
+      ind2 <- j
+    }
+    i <- ifelse(j==52, i+1, i)
+    j <- ifelse(j==52, 1, j+1)
+  }
+  
+#  ind1 <- which(sapply(deck, function(e) is.element(to_move, e)))
+#  ind2 <- which(sapply(deck[[ind1]], function(e) is.element(to_move, e)))
+
+  ind1x <- ind1
+  ind2x <- ind2
+  
+  # can keep it like this, and then 50/50 chance of moving vertically or horizontally
+  # sort of (with adjustments as below)
+  move <- sample(c(-1, 0, 1), size=1, prob = c(0.25, 0.5, 0.25))
+  
+  # Do nothing if it doesn't move, otherwise move it
+  if(move !=0){
+    # pick which direction it will move in
+    # if the card is not on an edge of the grid, this is all we need to do
+    # otherwise we need to adjust probabilities
+    dir <- sample(c(1,2), size=1)
+    if(dir == 1){
+      ind1 <- ind1 + move
+      if(ind1 == 0){
+        if(ind2 == 1 | ind2==52){
+          # this means the card was in a corner of the grid, meaning
+          # there are only 2 neighbors
+          # In this case, just move ind1 the other way
+          # This will occur with overall probability 0.5*0.5 as it should
+          ind1 <- 2
+        } else{
+          # otherwise, need to balance probability for two ind2 options
+          # if we get to here, this means that the card is on an edge, but not in a corner
+          # all moves should have overall probability 1/6 
+          # The probability of getting here is 0.5*0.5 = 1/4, so we need to adjust that down to 1/6
+          # 1/4 * 2/3 = 1/6
+          adj <- sample(c(1,2), size=1, prob=c(2/3, 1/3))
+          if(adj==1){
+            ind1 <- 2
+          } else {
+            # with 1/3 probability, we do not move ind1,
+            # and send it over to move in the other direction
+            dir <- 2
+            # and move ind1 back
+            ind1 <- ind1 - move
+          }
+        }
+      }
+      if(ind1 == 53){
+        if(ind2 == 1 | ind2==52){
+          # in this case, just move ind1 the other way
+          ind1 <- 51
+        } else {
+          # otherwise, again need to balance probability
+          adj <- sample(c(1,2), size=1, prob=c(2/3, 1/3))
+          if(adj==1){
+            ind1 <- 51
+          } else {
+            dir <- 2
+            # and move ind1 back
+            ind1 <- ind1 - move
+          }
+        }
+      }
+    }
+    if(dir==2){
+      ind2 <- ind2 + move
+      if(ind2 == 0){
+        ind2 <- 2
+      }
+      if(ind2 == 53){
+        ind2 <- 51
+      }
+    }
+    # I think this works -- all moves should have the correct probability
+
+    # need to remove card from where it came
+    deck[[ind1]][[ind2]] <- place_card(deck[[ind1]][[ind2]], to_move)
+    deck[[ind1x]][[ind2x]] <- deck[[ind1x]][[ind2x]][-which(deck[[ind1x]][[ind2x]]==to_move)]
+    
+  }  
+  return(deck)
+}
+
+
+# Wrapper function
+# its input should be a deck in vector format
+shuffleC <- function(deck, iterations){
+  # 2-dimensional list
+  deck <- list(as.list(deck))
+  for(i in 2:52){
+    deck[[i]] <- as.list(rep(NA, 52))
+    # inefficient but I don't see any other way
+    for(j in 1:52){
+      deck[[i]][[j]] <- integer(0)
+    }
+  }
+  for(i in 1:iterations){
+    deck <- make_moveC(deck)
+  }
+  return(unlist(deck))
+}
+
 ```
